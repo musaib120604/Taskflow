@@ -1,7 +1,7 @@
 // TaskFlow Service Worker
 // Cache-first for static assets, network-first for Firestore
 
-const CACHE_NAME = 'taskflow-v1';
+const CACHE_NAME = 'taskflow-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
