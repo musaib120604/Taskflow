@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#1a1f2e" />
+  <title>TaskFlow</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #f4f3f0;
+      --surface:   #ffffff;
+      --border:    #d8d6d1;
+      --border-2:  #ebe9e4;
+      --ink:       #1a1f2e;
+      --ink-2:     #5a5f6e;
+      --ink-3:     #9a9fae;
+      --accent:    #2a5ce6;
+      --accent-lt: #e8eefb;
+      --danger:    #c0392b;
+      --success:   #1a7a4a;
+      --warn:      #c47c00;
+      --mono:      'IBM Plex Mono', monospace;
+      --sans:      'IBM Plex Sans', sans-serif;
+      --r:         4px;
+      --r-lg:      8px;
+      --sh:        0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04);
+      --sh-md:     0 4px 12px rgba(0,0,0,.08), 0 2px 4px rgba(0,0,0,.04);
+    }
+
+    body {
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--ink);
+      min-height: 100vh;
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Layout ── */
+    #app { display: flex; height: 100vh; overflow: hidden; }
+
+    .sidebar {
+      width: 240px;
+      min-width: 240px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+    .topbar {
+      height: 52px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+
+    .content { flex: 1; overflow-y: auto; padding: 24px; }
+
+    /* ── Sidebar branding ── */
+    .brand {
+      padding: 16px;
+      border-bottom: 1px solid var(--border-2);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .brand-icon {
+      width: 28px; height: 28px;
+      background: var(--ink);
+      border-radius: var(--r);
+      display: grid; place-items: center;
+    }
+    .brand-icon svg { color: #fff; }
+    .brand-name { font-weight: 600; font-size: 15px; letter-spacing: -.01em; }
+
+    /* ── Nav ── */
+    .nav-section { padding: 8px 0; border-bottom: 1px solid var(--border-2); }
+    .nav-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--ink-3);
+      padding: 6px 16px 4px;
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 16px;
+      color: var(--ink-2);
+      cursor: pointer;
+      border-radius: 0;
+      font-size: 13.5px;
+      transition: background .1s, color .1s;
+      border-left: 2px solid transparent;
+    }
+    .nav-item:hover { background: var(--bg); color: var(--ink); }
+    .nav-item.active { color: var(--accent); background: var(--accent-lt); border-left-color: var(--accent); }
+    .nav-item .badge {
+      margin-left: auto;
+      background: var(--border);
+      color: var(--ink-2);
+      font-size: 11px;
+      font-family: var(--mono);
+      padding: 1px 6px;
+      border-radius: 10px;
+      min-width: 20px;
+      text-align: center;
+    }
+    .nav-item.active .badge { background: var(--accent); color: #fff; }
+
+    /* ── Sidebar user area ── */
+    .sidebar-user {
+      margin-top: auto;
+      padding: 12px 16px;
+      border-top: 1px solid var(--border-2);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .avatar {
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      background: var(--ink);
+      color: #fff;
+      display: grid; place-items: center;
+      font-size: 12px;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+    .avatar.sm { width: 24px; height: 24px; font-size: 10px; }
+    .avatar.md { width: 36px; height: 36px; font-size: 13px; }
+    .user-info { min-width: 0; }
+    .user-name { font-weight: 500; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .user-handle { font-size: 11px; color: var(--ink-3); font-family: var(--mono); }
+
+    /* ── Topbar elements ── */
+    .topbar-title { font-weight: 600; font-size: 15px; }
+    .topbar-spacer { flex: 1; }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-family: var(--sans); font-size: 13px; font-weight: 500;
+      padding: 6px 14px;
+      border-radius: var(--r);
+      border: 1px solid transparent;
+      cursor: pointer; transition: background .1s, border-color .1s, box-shadow .1s;
+      white-space: nowrap;
+    }
+    .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn-primary:hover { background: #1e4cc4; border-color: #1e4cc4; }
+    .btn-secondary { background: var(--surface); color: var(--ink); border-color: var(--border); }
+    .btn-secondary:hover { background: var(--bg); border-color: var(--ink-3); }
+    .btn-ghost { background: transparent; color: var(--ink-2); border-color: transparent; }
+    .btn-ghost:hover { background: var(--bg); color: var(--ink); }
+    .btn-danger { background: var(--danger); color: #fff; border-color: var(--danger); }
+    .btn-sm { padding: 4px 10px; font-size: 12px; }
+    .btn-icon { padding: 6px; border-radius: var(--r); }
+
+    /* ── Cards / Panels ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      box-shadow: var(--sh);
+    }
+    .card-header {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border-2);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .card-title { font-weight: 600; font-size: 14px; }
+    .card-body { padding: 16px; }
+
+    /* ── Groups ── */
+    .group-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px;
+      border-radius: var(--r);
+      border: 1px solid var(--border-2);
+      background: var(--surface);
+      cursor: pointer;
+      transition: background .1s;
+    }
+    .group-item:hover { background: var(--accent-lt); }
+    .group-icon {
+      width: 32px; height: 32px; border-radius: var(--r);
+      display: grid; place-items: center; font-size: 14px;
+      flex-shrink: 0;
+    }
+    .g-public { background: #e8eefb; }
+    .g-private { background: #fef3e2; }
+    .group-name { font-weight: 500; font-size: 13px; }
+    .group-sub { font-size: 11px; color: var(--ink-3); }
+    .lock-badge {
+      margin-left: auto; font-size: 10px; padding: 2px 7px;
+      border-radius: 10px; font-weight: 600; letter-spacing: .03em;
+    }
+    .lock-public { background: var(--accent-lt); color: var(--accent); }
+    .lock-private { background: #fef3e2; color: var(--warn); }
+
+    /* ── Friends ── */
+    .friend-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border-2);
+    }
+    .friend-item:last-child { border-bottom: none; }
+    .online-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      flex-shrink: 0; margin-left: auto;
+    }
+    .online { background: var(--success); }
+    .offline { background: var(--border); }
+
+    /* ── Input / Form ── */
+    .field { margin-bottom: 14px; }
+    .field label { display: block; font-size: 12px; font-weight: 600; color: var(--ink-2); margin-bottom: 5px; }
+    .input {
+      width: 100%;
+      font-family: var(--sans); font-size: 13px;
+      padding: 7px 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      background: var(--surface);
+      color: var(--ink);
+      outline: none;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(42,92,230,.12); }
+    .input::placeholder { color: var(--ink-3); }
+    select.input { cursor: pointer; }
+
+    /* ── Modal ── */
+    .modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.35);
+      display: none; place-items: center; z-index: 100;
+    }
+    .modal-overlay.open { display: grid; }
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      width: 440px; max-width: 95vw;
+      box-shadow: var(--sh-md);
+    }
+    .modal-header {
+      padding: 16px 20px 14px;
+      border-bottom: 1px solid var(--border-2);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .modal-title { font-weight: 600; font-size: 15px; }
+    .modal-body { padding: 20px; }
+    .modal-footer {
+      padding: 12px 20px;
+      border-top: 1px solid var(--border-2);
+      display: flex; justify-content: flex-end; gap: 8px;
+    }
+
+    /* ── Auth screen ── */
+    #auth-screen {
+      position: fixed; inset: 0;
+      background: var(--bg);
+      display: grid; place-items: center; z-index: 200;
+    }
+    .auth-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      width: 380px; max-width: 95vw;
+      box-shadow: var(--sh-md);
+      padding: 32px;
+    }
+    .auth-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 24px; }
+    .auth-title { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+    .auth-sub { font-size: 13px; color: var(--ink-2); margin-bottom: 20px; }
+    .auth-switch { font-size: 12px; color: var(--ink-3); text-align: center; margin-top: 14px; }
+    .auth-switch a { color: var(--accent); cursor: pointer; text-decoration: none; }
+
+    /* ── Toast ── */
+    .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 300; display: flex; flex-direction: column; gap: 8px; }
+    .toast {
+      background: var(--ink); color: #fff;
+      padding: 10px 16px; border-radius: var(--r);
+      font-size: 13px; box-shadow: var(--sh-md);
+      display: flex; align-items: center; gap: 8px;
+      animation: slideIn .2s ease;
+    }
+    .toast.error { background: var(--danger); }
+    .toast.success { background: var(--success); }
+    @keyframes slideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ── Misc ── */
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .section-title { font-weight: 600; font-size: 14px; }
+    .empty-state { text-align: center; padding: 32px 16px; color: var(--ink-3); font-size: 13px; }
+    .two-col { display: grid; grid-template-columns: 1fr 320px; gap: 16px; }
+    .mb-12 { margin-bottom: 12px; }
+    .w-full { width: 100%; }
+    hr.divider-line { border: none; border-top: 1px solid var(--border-2); margin: 16px 0; }
+
+    /* ── Responsive ── */
+    @media (max-width: 900px) {
+      .sidebar { width: 200px; min-width: 200px; }
+      .two-col { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 640px) {
+      #app { flex-direction: column; }
+      .sidebar { width: 100%; min-width: unset; height: auto; flex-direction: row; overflow-x: auto; border-right: none; border-bottom: 1px solid var(--border); }
+      .sidebar .nav-section { display: flex; flex-direction: row; border-bottom: none; padding: 8px; }
+      .sidebar .nav-label { display: none; }
+      .sidebar-user { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Auth Screen -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-brand">
+      <div class="brand-icon" style="width:32px;height:32px;">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+      </div>
+      <span style="font-size:18px;font-weight:700;letter-spacing:-.02em;">TaskFlow</span>
+    </div>
+    <div id="auth-view-login">
+      <div class="auth-title">Sign in</div>
+      <div class="auth-sub">Enter your credentials to continue.</div>
+      <div class="field"><label>Email</label><input class="input" id="login-email" type="email" placeholder="you@example.com" /></div>
+      <div class="field"><label>Password</label><input class="input" id="login-pass" type="password" placeholder="••••••••" /></div>
+      <button class="btn btn-primary w-full" id="btn-login" style="width:100%;justify-content:center;">Sign In</button>
+      <div class="auth-switch">No account? <a onclick="showRegister()">Create one</a></div>
+    </div>
+    <div id="auth-view-register" style="display:none;">
+      <div class="auth-title">Create account</div>
+      <div class="auth-sub">Pick a username and get started.</div>
+      <div class="field"><label>Username</label><input class="input" id="reg-username" placeholder="e.g. jdoe" /></div>
+      <div class="field"><label>Display Name</label><input class="input" id="reg-name" placeholder="Jane Doe" /></div>
+      <div class="field"><label>Email</label><input class="input" id="reg-email" type="email" placeholder="you@example.com" /></div>
+      <div class="field"><label>Password</label><input class="input" id="reg-pass" type="password" placeholder="min 6 chars" /></div>
+      <button class="btn btn-primary" id="btn-register" style="width:100%;justify-content:center;">Create Account</button>
+      <div class="auth-switch">Have an account? <a onclick="showLogin()">Sign in</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- Main App -->
+<div id="app" style="display:none;">
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="brand">
+      <div class="brand-icon">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+      </div>
+      <span class="brand-name">TaskFlow</span>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">Workspace</div>
+      <div class="nav-item active" onclick="showView('groups')">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+        Groups
+        <span class="badge" id="badge-groups">0</span>
+      </div>
+      <div class="nav-item" onclick="showView('friends')">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        Friends
+        <span class="badge" id="badge-friends">0</span>
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">Groups</div>
+      <div id="sidebar-groups-list"></div>
+    </div>
+
+    <div class="sidebar-user" id="sidebar-user">
+      <div class="avatar" id="user-avatar-sidebar">?</div>
+      <div class="user-info">
+        <div class="user-name" id="user-name-sidebar">Loading…</div>
+        <div class="user-handle" id="user-handle-sidebar">@—</div>
+      </div>
+      <button class="btn btn-ghost btn-icon btn-sm" onclick="signOut()" title="Sign out">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Main content -->
+  <div class="main">
+    <!-- Topbar -->
+    <div class="topbar">
+      <span class="topbar-title" id="topbar-title">Groups</span>
+      <div class="topbar-spacer"></div>
+      <button class="btn btn-primary btn-sm" id="topbar-action-btn" onclick="openCreateGroupModal()">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        New Group
+      </button>
+    </div>
+
+    <!-- Views -->
+    <div class="content">
+
+      <!-- Groups view -->
+      <div id="view-groups">
+        <div class="section-header">
+          <span class="section-title">Your Groups</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;" id="groups-grid"></div>
+        <div class="empty-state" id="groups-empty" style="display:none;">No groups yet. Create one!</div>
+
+        <hr class="divider-line" style="margin:24px 0;" />
+        <div class="section-header">
+          <span class="section-title">Discover Public Groups</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;" id="public-groups-grid"></div>
+      </div>
+
+      <!-- Friends view -->
+      <div id="view-friends" style="display:none;">
+        <div class="two-col">
+          <div>
+            <div class="card mb-12">
+              <div class="card-header">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <span class="card-title">Add Friend by Username</span>
+              </div>
+              <div class="card-body">
+                <div style="display:flex;gap:8px;">
+                  <input class="input" id="friend-username-input" placeholder="@username" style="flex:1;" />
+                  <button class="btn btn-primary btn-sm" onclick="sendFriendRequest()">Send Request</button>
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title">Friends</span>
+                <span class="badge" id="friends-count" style="margin-left:auto;">0</span>
+              </div>
+              <div class="card-body">
+                <div id="friends-list"></div>
+                <div class="empty-state" id="friends-empty">No friends added yet.</div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title">Pending Requests</span>
+                <span class="badge" id="pending-count" style="margin-left:auto;">0</span>
+              </div>
+              <div class="card-body">
+                <div id="pending-list"></div>
+                <div class="empty-state" id="pending-empty">No pending requests.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- Create Group Modal -->
+<div class="modal-overlay" id="modal-group">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Create Group</span>
+      <button class="btn btn-ghost btn-icon btn-sm" onclick="closeModal('modal-group')">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="field"><label>Group Name *</label><input class="input" id="group-name-input" placeholder="Team Alpha, Study Group…" /></div>
+      <div class="field"><label>Description</label><input class="input" id="group-desc-input" placeholder="What is this group for?" /></div>
+      <div class="field"><label>Visibility</label>
+        <select class="input" id="group-visibility">
+          <option value="private">🔒 Private – invite only</option>
+          <option value="public">🌐 Public – anyone can join</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-group')">Cancel</button>
+      <button class="btn btn-primary btn-sm" onclick="saveGroup()">Create Group</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container" id="toasts"></div>
+
+<!-- Firebase -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import {
+  getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
+  onAuthStateChanged, signOut as fbSignOut
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import {
+  getFirestore, doc, setDoc, getDoc, addDoc, updateDoc,
+  collection, query, where, onSnapshot, serverTimestamp,
+  getDocs, arrayUnion, limit
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+// ── Firebase config ──
+const firebaseConfig = {
+  apiKey: "AIzaSyC5B2hRyx1F8nTYrQQDNNEs0jMjExFEroA",
+  authDomain: "taskflow-aaa9b.firebaseapp.com",
+  projectId: "taskflow-aaa9b",
+  storageBucket: "taskflow-aaa9b.firebasestorage.app",
+  messagingSenderId: "566568295631",
+  appId: "1:566568295631:web:d082e6632ee8b8ed936bba"
+};
+
+const app  = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db   = getFirestore(app);
+
+// ── State ──
+let currentUser = null;
+let userProfile = null;
+let allGroups   = [];
+let pendingReqs = [];
+let unsubs      = [];
+
+// ── DOM helpers ──
+const $ = id => document.getElementById(id);
+window.toast = (msg, type='') => {
+  const t = document.createElement('div');
+  t.className = 'toast' + (type ? ' ' + type : '');
+  t.textContent = msg;
+  $('toasts').appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+};
+
+// ── Auth UI ──
+window.showRegister = () => { $('auth-view-login').style.display='none'; $('auth-view-register').style.display='block'; };
+window.showLogin    = () => { $('auth-view-register').style.display='none'; $('auth-view-login').style.display='block'; };
+
+$('btn-login').onclick = async () => {
+  const email = $('login-email').value.trim();
+  const pass  = $('login-pass').value;
+  try {
+    await signInWithEmailAndPassword(auth, email, pass);
+  } catch(e) { toast(e.message, 'error'); }
+};
+
+$('btn-register').onclick = async () => {
+  const username = $('reg-username').value.trim().toLowerCase();
+  const name     = $('reg-name').value.trim();
+  const email    = $('reg-email').value.trim();
+  const pass     = $('reg-pass').value;
+  if (!username || !name || !email || !pass) return toast('Fill all fields', 'error');
+  if (!/^[a-z0-9_]{3,20}$/.test(username)) return toast('Username: 3-20 chars, a-z 0-9 _', 'error');
+  const snap = await getDocs(query(collection(db,'users'), where('username','==',username), limit(1)));
+  if (!snap.empty) return toast('Username taken', 'error');
+  try {
+    const cred = await createUserWithEmailAndPassword(auth, email, pass);
+    await setDoc(doc(db,'users',cred.user.uid), { uid: cred.user.uid, username, displayName: name, email, friends:[], createdAt: serverTimestamp() });
+    await setDoc(doc(db,'usernames',username), { uid: cred.user.uid });
+  } catch(e) { toast(e.message, 'error'); }
+};
+
+// ── Auth state ──
+onAuthStateChanged(auth, async user => {
+  if (user) {
+    currentUser = user;
+    const snap = await getDoc(doc(db,'users',user.uid));
+    if (snap.exists()) {
+      userProfile = snap.data();
+      initApp();
+    }
+  } else {
+    currentUser = null; userProfile = null;
+    $('auth-screen').style.display = 'grid';
+    $('app').style.display = 'none';
+    unsubs.forEach(u => u()); unsubs = [];
+  }
+});
+
+function initApp() {
+  $('auth-screen').style.display = 'none';
+  $('app').style.display = 'flex';
+  $('user-name-sidebar').textContent   = userProfile.displayName;
+  $('user-handle-sidebar').textContent = '@' + userProfile.username;
+  $('user-avatar-sidebar').textContent = userProfile.displayName[0].toUpperCase();
+  subscribeAll();
+}
+
+window.signOut = async () => { await fbSignOut(auth); };
+
+// ── Subscriptions ──
+function subscribeAll() {
+  unsubs.forEach(u => u()); unsubs = [];
+
+  // Groups (member)
+  const gq = query(collection(db,'groups'), where('members','array-contains',currentUser.uid));
+  unsubs.push(onSnapshot(gq, snap => {
+    allGroups = snap.docs.map(d=>({id:d.id,...d.data()}));
+    renderGroups();
+    renderSidebarGroups();
+    updateBadges();
+  }));
+
+  // Friend requests
+  const fq = query(collection(db,'friendRequests'), where('toUid','==',currentUser.uid), where('status','==','pending'));
+  unsubs.push(onSnapshot(fq, snap => {
+    pendingReqs = snap.docs.map(d=>({id:d.id,...d.data()}));
+    renderFriends();
+  }));
+
+  // Public groups (for discovery)
+  const pq = query(collection(db,'groups'), where('visibility','==','public'), limit(12));
+  getDocs(pq).then(snap => {
+    const pub = snap.docs.map(d=>({id:d.id,...d.data()}));
+    renderPublicGroups(pub);
+  });
+}
+
+// ── Render ──
+function renderGroups() {
+  const grid = $('groups-grid');
+  grid.innerHTML = allGroups.map(g => `
+    <div class="card" style="cursor:pointer;">
+      <div class="card-header">
+        <div class="group-icon ${g.visibility==='public'?'g-public':'g-private'}">${g.visibility==='public'?'🌐':'🔒'}</div>
+        <div>
+          <div class="group-name">${escHtml(g.name)}</div>
+          <div class="group-sub">${(g.members||[]).length} members</div>
+        </div>
+        <span class="lock-badge ${g.visibility==='public'?'lock-public':'lock-private'}" style="margin-left:auto;">${g.visibility}</span>
+      </div>
+      <div class="card-body" style="font-size:12px;color:var(--ink-2);">${escHtml(g.description||'No description')}</div>
+    </div>`).join('');
+  $('groups-empty').style.display = allGroups.length ? 'none' : 'block';
+}
+
+function renderPublicGroups(groups) {
+  const mine = new Set(allGroups.map(g=>g.id));
+  const grid = $('public-groups-grid');
+  const others = groups.filter(g=>!mine.has(g.id));
+  grid.innerHTML = others.length ? others.map(g => `
+    <div class="card">
+      <div class="card-header">
+        <div class="group-icon g-public">🌐</div>
+        <div>
+          <div class="group-name">${escHtml(g.name)}</div>
+          <div class="group-sub">${(g.members||[]).length} members</div>
+        </div>
+      </div>
+      <div class="card-body" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+        <span style="font-size:12px;color:var(--ink-2);">${escHtml(g.description||'')}</span>
+        <button class="btn btn-secondary btn-sm" onclick="joinGroup('${g.id}')">Join</button>
+      </div>
+    </div>`).join('') : '<div class="empty-state" style="grid-column:1/-1;">No public groups found.</div>';
+}
+
+function renderSidebarGroups() {
+  $('sidebar-groups-list').innerHTML = allGroups.slice(0,5).map(g=>`
+    <div class="nav-item" onclick="showView('groups')">
+      <span style="font-size:12px;">${g.visibility==='public'?'🌐':'🔒'}</span>
+      <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(g.name)}</span>
+    </div>`).join('');
+}
+
+async function renderFriends() {
+  const el   = $('friends-list');
+  const uids = userProfile?.friends || [];
+
+  if (!uids.length) {
+    $('friends-empty').style.display = 'block';
+    if (el) el.innerHTML = '';
+  } else {
+    $('friends-empty').style.display = 'none';
+    const profiles = await Promise.all(uids.map(uid => getDoc(doc(db,'users',uid)).then(d=>d.data())));
+    if (el) el.innerHTML = profiles.filter(Boolean).map(p=>`
+      <div class="friend-item">
+        <div class="avatar sm">${p.displayName[0]}</div>
+        <div>
+          <div style="font-size:13px;font-weight:500;">${escHtml(p.displayName)}</div>
+          <div class="user-handle">@${p.username}</div>
+        </div>
+        <div class="online-dot offline"></div>
+      </div>`).join('');
+  }
+
+  $('friends-count').textContent = uids.length;
+  $('pending-count').textContent = pendingReqs.length;
+
+  const pendEl = $('pending-list');
+  if (pendingReqs.length) {
+    $('pending-empty').style.display = 'none';
+    pendEl.innerHTML = pendingReqs.map(r=>`
+      <div class="friend-item">
+        <div class="avatar sm">${(r.fromName||'?')[0]}</div>
+        <div style="flex:1;">
+          <div style="font-size:13px;font-weight:500;">${escHtml(r.fromName||r.fromUid)}</div>
+          <div class="user-handle">@${r.fromUsername||''}</div>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-primary btn-sm" onclick="acceptFriend('${r.id}','${r.fromUid}')">Accept</button>
+          <button class="btn btn-secondary btn-sm" onclick="declineFriend('${r.id}')">Decline</button>
+        </div>
+      </div>`).join('');
+  } else {
+    $('pending-empty').style.display = 'block';
+    pendEl.innerHTML = '';
+  }
+}
+
+function updateBadges() {
+  $('badge-groups').textContent  = allGroups.length;
+  $('badge-friends').textContent = (userProfile?.friends||[]).length;
+}
+
+// ── Actions ──
+window.saveGroup = async () => {
+  const name = $('group-name-input').value.trim();
+  if (!name) return toast('Name required', 'error');
+  await addDoc(collection(db,'groups'), {
+    name,
+    description: $('group-desc-input').value.trim(),
+    visibility:  $('group-visibility').value,
+    ownerUid:    currentUser.uid,
+    members:     [currentUser.uid],
+    createdAt:   serverTimestamp()
+  });
+  closeModal('modal-group');
+  toast('Group created', 'success');
+};
+
+window.joinGroup = async (groupId) => {
+  await updateDoc(doc(db,'groups',groupId), { members: arrayUnion(currentUser.uid) });
+  toast('Joined group', 'success');
+};
+
+window.sendFriendRequest = async () => {
+  const username = $('friend-username-input').value.trim().toLowerCase().replace('@','');
+  if (!username) return toast('Enter a username', 'error');
+  if (username === userProfile.username) return toast("That's you!", 'error');
+  const snap = await getDoc(doc(db,'usernames',username));
+  if (!snap.exists()) return toast('User not found', 'error');
+  const toUid = snap.data().uid;
+  if ((userProfile.friends||[]).includes(toUid)) return toast('Already friends', 'error');
+  const toSnap = await getDoc(doc(db,'users',toUid));
+  const toProfile = toSnap.data();
+  await addDoc(collection(db,'friendRequests'), {
+    fromUid: currentUser.uid, fromName: userProfile.displayName, fromUsername: userProfile.username,
+    toUid, toName: toProfile.displayName, status: 'pending', createdAt: serverTimestamp()
+  });
+  toast('Friend request sent!', 'success');
+  $('friend-username-input').value = '';
+};
+
+window.acceptFriend = async (reqId, fromUid) => {
+  await updateDoc(doc(db,'friendRequests',reqId), { status: 'accepted' });
+  await updateDoc(doc(db,'users',currentUser.uid), { friends: arrayUnion(fromUid) });
+  await updateDoc(doc(db,'users',fromUid), { friends: arrayUnion(currentUser.uid) });
+  const snap = await getDoc(doc(db,'users',currentUser.uid));
+  userProfile = snap.data();
+  toast('Friend added!', 'success');
+  renderFriends();
+};
+
+window.declineFriend = async (reqId) => {
+  await updateDoc(doc(db,'friendRequests',reqId), { status: 'declined' });
+  toast('Request declined');
+};
+
+// ── View routing ──
+const views = ['groups','friends'];
+window.showView = (v) => {
+  views.forEach(vv => $('view-'+vv).style.display = vv===v?'block':'none');
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>{ if(n.getAttribute('onclick')?.includes(v)) n.classList.add('active'); });
+  $('topbar-title').textContent = {groups:'Groups',friends:'Friends'}[v];
+  $('topbar-action-btn').style.display = v==='groups' ? 'flex' : 'none';
+};
+
+// ── Modals ──
+window.openCreateGroupModal = () => {
+  $('group-name-input').value = '';
+  $('group-desc-input').value = '';
+  $('group-visibility').value = 'private';
+  $('modal-group').classList.add('open');
+};
+window.closeModal = id => { $(id).classList.remove('open'); };
+
+$('modal-group').addEventListener('click', e => { if(e.target===$('modal-group')) closeModal('modal-group'); });
+
+// ── Util ──
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
